@@ -142,18 +142,110 @@ void rf_menu(char *filepath)
     }
   }
 }
-// void sl_menu(char *filename
-// {
-//   char input;
-//
-//   do {
-//     printf("Symbolic Link Menu:\n\n");
-//
-//     printf("-n Link name:\n");
-//     printf("-l ")
-//   }
-// }
-//
+
+void sl_menu(char *linkpath)
+{
+  char *input;
+  struct stat linkstat;
+  struct stat targetstat;
+  printf("Symbolic Link menu:\n\n");
+
+  printf("-n Link name\n");
+  printf("-l Delete link\n");
+  printf("-d Link size\n");
+  printf("-t Target size\n");
+  printf("-a Acces rights\n");
+  printf("-q Exit\n");
+  
+  while(1)
+  {
+    printf("Choose an optionn:\n");
+    input = read_stdin();
+    
+    for(int i = 1; input[i] != '\0'; i++)
+    {
+      if (input[i] == 'q') 
+      {
+        printf("Goodbye!\n");
+        return;
+      }
+      
+      switch(input[i]) {
+        case 'n':
+          {
+            char *buff;
+            char *linkname = linkpath;
+            
+            if(linkname[0] == '/') // if the given path is the root directory it will start with a '/'
+              linkname++;
+            
+            while((buff = strchr(linkname, '/')) != NULL)
+              linkname = buff + 1;
+            printf("File name: %s\n", linkname);
+
+            break;
+          }
+        case 'l':
+          {
+            if(unlink(linkpath) < 0)
+            {
+              perror("fstat");
+              break;
+            }
+
+            printf("Deleted symbolic link '%s'", linkpath);
+            break;
+          }
+        case 'd':
+          {
+            if((lstat(linkpath, &linkstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+
+            printf("Link size: %ld\n", linkstat.st_size);
+            break;
+          }
+        case 't':
+          {
+            if((stat(linkpath, &targetstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+
+            printf("Target size: %ld\n", targetstat.st_size);
+            break;
+          }
+        case 'a':
+          {
+            if((lstat(linkpath, &linkstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+          
+            printf((linkstat.st_mode & S_IRUSR) ? "r" : "-");
+            printf((linkstat.st_mode & S_IWUSR) ? "w" : "-");
+            printf((linkstat.st_mode & S_IXUSR) ? "x" : "-");
+            printf((linkstat.st_mode & S_IRGRP) ? "r" : "-");
+            printf((linkstat.st_mode & S_IWGRP) ? "w" : "-");
+            printf((linkstat.st_mode & S_IXGRP) ? "x" : "-");
+            printf((linkstat.st_mode & S_IROTH) ? "r" : "-");
+            printf((linkstat.st_mode & S_IWOTH) ? "w" : "-");
+            printf((linkstat.st_mode & S_IXOTH) ? "x\n" : "-\n");
+                        
+            break;
+          }
+        default:
+          printf("Invalid option!\n");
+          break;
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv)
 {
   struct stat filestat;
@@ -173,8 +265,7 @@ int main(int argc, char **argv)
 
     if(S_ISLNK(filestat.st_mode))
     {
-      printf("Link: %s", argv[i]);
-      //sl_menu(argv[i]);
+      sl_menu(argv[i]);
     }
     if(S_ISDIR(filestat.st_mode))
     {
