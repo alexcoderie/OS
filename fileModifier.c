@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>
 
 static char * read_stdin(void)
 {
@@ -109,15 +110,18 @@ void rf_menu(char *filepath)
             return;
           }
           
-          printf((filestat.st_mode & S_IRUSR) ? "r" : "-");
-          printf((filestat.st_mode & S_IWUSR) ? "w" : "-");
-          printf((filestat.st_mode & S_IXUSR) ? "x" : "-");
-          printf((filestat.st_mode & S_IRGRP) ? "r" : "-");
-          printf((filestat.st_mode & S_IWGRP) ? "w" : "-");
-          printf((filestat.st_mode & S_IXGRP) ? "x" : "-");
-          printf((filestat.st_mode & S_IROTH) ? "r" : "-");
-          printf((filestat.st_mode & S_IWOTH) ? "w" : "-");
-          printf((filestat.st_mode & S_IXOTH) ? "x\n" : "-\n");
+          printf("User:\n"); 
+          printf((filestat.st_mode & S_IRUSR) ? "Read - yes\n" : "Read - no \n");
+          printf((filestat.st_mode & S_IWUSR) ? "Write - yes\n" : "Write - no\n");
+          printf((filestat.st_mode & S_IXUSR) ? "Exec - yes\n" : "Exec - no\n");
+          printf("Group:\n");
+          printf((filestat.st_mode & S_IRGRP) ? "Read - yes\n" : "Read - no\n");
+          printf((filestat.st_mode & S_IWGRP) ? "Write - yes\n" : "Write - no\n");
+          printf((filestat.st_mode & S_IXGRP) ? "Exec - yes\n" : "Exec - no\n");
+          printf("Other:\n");
+          printf((filestat.st_mode & S_IROTH) ? "Read - yes\n" : "Read - no\n");
+          printf((filestat.st_mode & S_IWOTH) ? "Write - yes\n" : "Write - no\n");
+          printf((filestat.st_mode & S_IXOTH) ? "Exec - yes\n" : "Exec - no\n");          
           break;
         }
       case 'l':
@@ -225,22 +229,119 @@ void sl_menu(char *linkpath)
               perror("fstat");
               return;
             }
-          
-            printf((linkstat.st_mode & S_IRUSR) ? "r" : "-");
-            printf((linkstat.st_mode & S_IWUSR) ? "w" : "-");
-            printf((linkstat.st_mode & S_IXUSR) ? "x" : "-");
-            printf((linkstat.st_mode & S_IRGRP) ? "r" : "-");
-            printf((linkstat.st_mode & S_IWGRP) ? "w" : "-");
-            printf((linkstat.st_mode & S_IXGRP) ? "x" : "-");
-            printf((linkstat.st_mode & S_IROTH) ? "r" : "-");
-            printf((linkstat.st_mode & S_IWOTH) ? "w" : "-");
-            printf((linkstat.st_mode & S_IXOTH) ? "x\n" : "-\n");
+            printf("User\n"); 
+            printf((linkstat.st_mode & S_IRUSR) ? "Read - yes\n" : "Read - no\n");
+            printf((linkstat.st_mode & S_IWUSR) ? "Write - yes\n" : "Write - no\n");
+            printf((linkstat.st_mode & S_IXUSR) ? "Execute - yes\n" : "Execute - no\n");
+            printf("Group\n");
+            printf((linkstat.st_mode & S_IRGRP) ? "Read - yes\n" : "Read - no\n");
+            printf((linkstat.st_mode & S_IWGRP) ? "Write - yes\n" : "Write - no\n");
+            printf((linkstat.st_mode & S_IXGRP) ? "Execute - yes\n" : "Execute - no\n");
+            printf("Other\n");
+            printf((linkstat.st_mode & S_IROTH) ? "Read - yes\n" : "Read - no\n");
+            printf((linkstat.st_mode & S_IWOTH) ? "Write - yes\n" : "Write - no\n");
+            printf((linkstat.st_mode & S_IXOTH) ? "Execute - yes\n" : "Execute - no\n");
                         
             break;
           }
         default:
           printf("Invalid option!\n");
           break;
+      }
+    }
+  }
+}
+
+void dir_menu(char *dirpath)
+{
+  char *input;
+  DIR *dir;
+  struct stat dirstat;
+  struct dirent;
+  if((dir = opendir(dirpath)) != NULL)
+  {
+    perror("Cannot open directory\n");
+    exit(1);
+  }
+
+  printf("Directory menu:\n\n");
+  printf("-n Directory name\n");
+  printf("-d Directory size\n");
+  printf("-a Acces rights\n");
+  printf("-c Total number of files that end with the '.c' extension\n");
+
+  while(1)
+  {
+    printf("Choose an option:\n");
+    input = read_stdin();
+
+    for(int i = 1; input[i] != '\0'; i++)
+    {
+      if(input[i] == 'q')
+      {
+        printf("Goodbye!\n");
+        return;
+      }
+
+      switch(input[i])
+      {
+        case 'n':
+          {
+            char *buff;
+            char *dirname = dirpath;
+            if(dirname[strlen(dirname) - 1] == '/')
+              dirname[strlen(dirname) - 1] = '\0';
+
+            if(dirname[0] == '/') // if the given path is the root directory it will start with a '/'
+              dirname++;
+            
+            while((buff = strchr(dirname, '/')) != NULL )
+              dirname = buff + 1;
+            printf("Directory name: %s\n", dirname);
+
+            break;
+          }
+        case 'd':
+          {
+            if((stat(dirpath, &dirstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+
+            printf("Directory size: %ld\n", dirstat.st_size);
+            break;
+          }
+        case 'a':
+          {
+            if((stat(dirpath, &dirstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+
+            printf("User:\n"); 
+            printf((dirstat.st_mode & S_IRUSR) ? "Read - yes\n" : "Read - no \n");
+            printf((dirstat.st_mode & S_IWUSR) ? "Write - yes\n" : "Write - no\n");
+            printf((dirstat.st_mode & S_IXUSR) ? "Exec - yes\n" : "Exec - no\n");
+            printf("Group:\n");
+            printf((dirstat.st_mode & S_IRGRP) ? "Read - yes\n" : "Read - no\n");
+            printf((dirstat.st_mode & S_IWGRP) ? "Write - yes\n" : "Write - no\n");
+            printf((dirstat.st_mode & S_IXGRP) ? "Exec - yes\n" : "Exec - no\n");
+            printf("Other:\n");
+            printf((dirstat.st_mode & S_IROTH) ? "Read - yes\n" : "Read - no\n");
+            printf((dirstat.st_mode & S_IWOTH) ? "Write - yes\n" : "Write - no\n");
+            printf((dirstat.st_mode & S_IXOTH) ? "Exec - yes\n" : "Exec - no\n");
+            break;
+          }
+        case 'c':
+          {
+            if((stat(dirpath, &dirstat)) < 0)
+            {
+              perror("fstat");
+              return;
+            }
+          }
       }
     }
   }
@@ -260,7 +361,16 @@ int main(int argc, char **argv)
 
     if(S_ISREG(filestat.st_mode))
     {
-      rf_menu(argv[i]);
+      char *buff;
+      char *linkname = argv[i];
+            
+      if(linkname[0] == '/') // if the given path is the root directory it will start with a '/'
+        linkname++;
+            
+      while((buff = strchr(linkname, '/')) != NULL)
+        linkname = buff + 1;
+      printf("%s - Regular file\n\n", linkname);
+      rf_menu(argv[i]);   
     }
 
     if(S_ISLNK(filestat.st_mode))
@@ -270,9 +380,8 @@ int main(int argc, char **argv)
     if(S_ISDIR(filestat.st_mode))
     {
       printf("Directory: %s", argv[i]);
+      dir_menu(argv[i]);
     }
-
   }
-
   return 0;
 }
