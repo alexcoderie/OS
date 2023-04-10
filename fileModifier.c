@@ -1,3 +1,4 @@
+#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +8,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <limits.h>
+#include <errno.h>
 
 static char * read_stdin(void)
 {
@@ -26,6 +29,57 @@ static char * read_stdin(void)
   buffer[len] = '\0';
 
   return buffer;
+}
+
+void count_c_files(const char* dirpath, int *count)
+{
+  struct stat dirstat;
+  struct dirent *ent;
+  DIR *dir;
+
+  if((stat(dirpath, &dirstat)) < 0)
+  {
+    perror("fstat");
+    return;
+  }
+            
+  if((dir = opendir(dirpath)) != NULL)
+  {
+    while((ent = readdir(dir)) != NULL)
+    {
+      const char *extension = strchr(ent->d_name, '.');
+
+      if(ent->d_type == DT_REG)
+      {
+        if((!extension) || (extension == ent->d_name))
+          return;
+        else 
+        {
+          if(strcmp(extension, ".c") == 0)
+          {
+            printf("%s\n", ent->d_name);
+            (*count)++;
+          }
+        }
+      }
+      else if(ent->d_type == DT_DIR)
+      {
+        if(strcmp(ent->d_name,".") != 0 && strcmp(ent->d_name, "..") != 0)
+        {
+          char subdirpath[PATH_MAX];
+          snprintf(subdirpath, PATH_MAX, "%s/%s", dirpath, ent->d_name);
+          count_c_files(subdirpath, count);
+        }
+      }
+    }
+                
+    closedir(dir);
+  }
+  else 
+  {
+    perror("Cannot open dir!\n");
+    exit(1);
+  }
 }
 
 void rf_menu(char *filepath)
@@ -130,6 +184,12 @@ void rf_menu(char *filepath)
           printf("Enter the name of the symbolic link you want to create:\n");
           linkname = read_stdin();
           
+          if(unlink(linkname) < 0 && errno != ENOENT)
+          {
+            perror("unlink");
+            return;
+          }
+
           if(symlink(filepath, linkname) < 0)
           {
             perror("fstat");
@@ -197,7 +257,7 @@ void sl_menu(char *linkpath)
               break;
             }
 
-            printf("Deleted symbolic link '%s'", linkpath);
+            printf("Deleted symbolic link '%s'\n", linkpath);
             break;
           }
         case 'd':
@@ -257,18 +317,14 @@ void dir_menu(char *dirpath)
   char *input;
   DIR *dir;
   struct stat dirstat;
-  struct dirent;
-  if((dir = opendir(dirpath)) != NULL)
-  {
-    perror("Cannot open directory\n");
-    exit(1);
-  }
-
+  struct dirent *ent;
+  
   printf("Directory menu:\n\n");
   printf("-n Directory name\n");
   printf("-d Directory size\n");
   printf("-a Acces rights\n");
   printf("-c Total number of files that end with the '.c' extension\n");
+  printf("-q Quit!\n");
 
   while(1)
   {
@@ -336,11 +392,9 @@ void dir_menu(char *dirpath)
           }
         case 'c':
           {
-            if((stat(dirpath, &dirstat)) < 0)
-            {
-              perror("fstat");
-              return;
-            }
+            int count = 0;
+            count_c_files(dirpath, &count);
+            printf("%d\n", count);
           }
       }
     }
@@ -362,6 +416,21 @@ int main(int argc, char **argv)
     if(S_ISREG(filestat.st_mode))
     {
       char *buff;
+      char *filename = argv[i];
+            
+      if(filename[0] == '/') // if the given path is the root directory it will start with a '/'
+        filename++;
+            
+      while((buff = strchr(filename, '/')) != NULL)
+        filename = buff + 1;
+      printf("%s - Regular file\n\n", filename);
+
+      rf_menu(argv[i]);   
+    }
+
+    if(S_ISLNK(filestat.st_mode))
+    {
+      char *buff;
       char *linkname = argv[i];
             
       if(linkname[0] == '/') // if the given path is the root directory it will start with a '/'
@@ -369,17 +438,25 @@ int main(int argc, char **argv)
             
       while((buff = strchr(linkname, '/')) != NULL)
         linkname = buff + 1;
-      printf("%s - Regular file\n\n", linkname);
-      rf_menu(argv[i]);   
-    }
+      printf("%s - Link\n\n", linkname);
 
-    if(S_ISLNK(filestat.st_mode))
-    {
       sl_menu(argv[i]);
     }
     if(S_ISDIR(filestat.st_mode))
     {
-      printf("Directory: %s", argv[i]);
+      char *buff;
+      char *dirname = argv[i];
+
+      if(dirname[strlen(dirname) - 1] == '/')
+        dirname[strlen(dirname) - 1] = '\0';
+
+      if(dirname[0] == '/') // if the given path is the root directory it will start with a '/'
+        dirname++;
+            
+      while((buff = strchr(dirname, '/')) != NULL )
+        dirname = buff + 1;
+      printf("%s - Directory\n\n", argv[i]);
+      
       dir_menu(argv[i]);
     }
   }
