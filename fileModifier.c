@@ -404,6 +404,7 @@ void dir_menu(char *dirpath)
 int main(int argc, char **argv)
 {
   struct stat filestat;
+  pid_t pid;
 
   for(int i = 1; i < argc; i++)
   {
@@ -417,7 +418,13 @@ int main(int argc, char **argv)
     {
       char *buff;
       char *filename = argv[i];
-            
+      
+      if((pid = fork()) == 0)
+        printf("Hello from child!\n");
+      else
+        printf("Hello from parent!\n");
+ 
+
       if(filename[0] == '/') // if the given path is the root directory it will start with a '/'
         filename++;
             
@@ -425,7 +432,9 @@ int main(int argc, char **argv)
         filename = buff + 1;
       printf("%s - Regular file\n\n", filename);
 
-      rf_menu(argv[i]);   
+      rf_menu(argv[i]);  
+
+      
     }
 
     if(S_ISLNK(filestat.st_mode))
