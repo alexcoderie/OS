@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <limits.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 static char * read_stdin(void)
 {
@@ -404,7 +405,7 @@ void dir_menu(char *dirpath)
 int main(int argc, char **argv)
 {
   struct stat filestat;
-  pid_t pid;
+  pid_t pid, pid1, pid2;
 
   for(int i = 1; i < argc; i++)
   {
@@ -413,60 +414,122 @@ int main(int argc, char **argv)
       printf("Error: Cannot lstat the file %s\n", argv[i]);
       continue;
     }
-
-    if(S_ISREG(filestat.st_mode))
-    {
-      char *buff;
-      char *filename = argv[i];
-      
-      if((pid = fork()) == 0)
-        printf("Hello from child!\n");
-      else
-        printf("Hello from parent!\n");
  
-
-      if(filename[0] == '/') // if the given path is the root directory it will start with a '/'
-        filename++;
-            
-      while((buff = strchr(filename, '/')) != NULL)
-        filename = buff + 1;
-      printf("%s - Regular file\n\n", filename);
-
-      rf_menu(argv[i]);  
-
-      
+    if((pid = fork()) < 0)
+    {
+      printf("Failed to create child process!\n");
+      exit(1);
     }
 
-    if(S_ISLNK(filestat.st_mode))
+    if(pid == 0)
     {
-      char *buff;
-      char *linkname = argv[i];
+      if(S_ISREG(filestat.st_mode))
+      {
+        char *buff;
+        char *filename = argv[i];
+     
+        if(filename[0] == '/') // if the given path is the root directory it will start with a '/'
+          filename++;
             
-      if(linkname[0] == '/') // if the given path is the root directory it will start with a '/'
-        linkname++;
-            
-      while((buff = strchr(linkname, '/')) != NULL)
-        linkname = buff + 1;
-      printf("%s - Link\n\n", linkname);
+        while((buff = strchr(filename, '/')) != NULL)
+          filename = buff + 1;
+        printf("%s - Regular file\n\n", filename);
+        
+        if(filename[strlen(filename) - 2] == '.' && filename[strlen(filename) - 1] == 'c')
+        {
+          if((pid1 = fork()) < 0)
+          {
+            printf("Failed to create 'pid1' child process!\n");
+            exit(1);
+          }
+          
+          if(pid1 == 0)
+          {
+            char* arguments[] = {"bash", "compile_c.sh", argv[i], "f1.txt", NULL};
+          
+            printf("This is a .c file. Executing script 'compile_c.sh'\n\n");
+            if(execv("/usr/bin/bash", arguments) == -1)
+            {
+              perror("execv");
+              exit(EXIT_FAILURE);
+            }
+            exit(0);
+          }
+          else 
+          {
+            wait(NULL);            
+            printf("Done! Sending you to regular file menu!\n\n");
+          }
+        }
 
-      sl_menu(argv[i]);
+        rf_menu(argv[i]); 
+      }
+
+      if(S_ISLNK(filestat.st_mode))
+      {
+        char *buff;
+        char *linkname = argv[i];
+            
+        if(linkname[0] == '/') // if the given path is the root directory it will start with a '/'
+          linkname++;
+            
+        while((buff = strchr(linkname, '/')) != NULL)
+          linkname = buff + 1;
+        printf("%s - Link\n\n", linkname);
+
+        sl_menu(argv[i]);
+      }
+
+      if(S_ISDIR(filestat.st_mode))
+      {
+        char *buff;
+        char *dirname = argv[i];
+
+        if(dirname[strlen(dirname) - 1] == '/')
+          dirname[strlen(dirname) - 1] = '\0';
+
+        if(dirname[0] == '/') // if the given path is the root directory it will start with a '/'
+          dirname++;
+            
+        while((buff = strchr(dirname, '/')) != NULL )
+          dirname = buff + 1;
+        printf("%s - Directory\n\n", argv[i]);
+        
+        if((pid2 = fork()) < 0)
+        {
+          printf("Failed to create 'pid2' child process\n");
+          exit(1);
+        }
+        
+        if(pid2 == 0)
+        {
+          char* dirname_file = (char *) malloc(sizeof(char) * (strlen(dirname) + 10));
+          strcpy(dirname_file, dirname);
+          strcat(dirname_file, "_file.txt");
+          char* arguments[] = {"touch", dirname_file, NULL};
+
+          printf("Creating a text file with the name '%s_file.txt'\n", dirname);
+
+          if(execv("/usr/bin/touch", arguments) == -1)
+          {
+            perror("execv");
+            exit(EXIT_FAILURE);
+          }
+          exit(0);
+        }
+        else 
+        {
+          wait(NULL);
+          printf("Done! Sending you to directory menu.\n\n");
+        }
+
+        dir_menu(argv[i]);
+      }
+      exit(0);
     }
-    if(S_ISDIR(filestat.st_mode))
+    else 
     {
-      char *buff;
-      char *dirname = argv[i];
-
-      if(dirname[strlen(dirname) - 1] == '/')
-        dirname[strlen(dirname) - 1] = '\0';
-
-      if(dirname[0] == '/') // if the given path is the root directory it will start with a '/'
-        dirname++;
-            
-      while((buff = strchr(dirname, '/')) != NULL )
-        dirname = buff + 1;
-      printf("%s - Directory\n\n", argv[i]);
-      
-      dir_menu(argv[i]);
+      wait(NULL);    
     }
   }
   return 0;

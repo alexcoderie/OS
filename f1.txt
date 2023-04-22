@@ -1,3 +1,7 @@
-mama mea e floreasa
-se trezeste de dimineata
-barsan suge carasu
+fileModifier.c: In function ‘dir_menu’:
+fileModifier.c:321:18: warning: unused variable ‘ent’ [-Wunused-variable]
+  321 |   struct dirent *ent;
+      |                  ^~~
+fileModifier.c:319:8: warning: unused variable ‘dir’ [-Wunused-variable]
+  319 |   DIR *dir;
+      |        ^~~

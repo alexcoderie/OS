@@ -26,3 +26,4 @@ echo "$count_errors"
 
 count_warnings=$(grep -c warning "$2")
 echo "$count_warnings"
+echo
