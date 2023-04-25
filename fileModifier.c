@@ -1,4 +1,4 @@
-#include <linux/limits.h>
+#include <linux/limits.h> 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +43,7 @@ void count_c_files(const char* dirpath, int *count)
     perror("fstat");
     return;
   }
-            
+
   if((dir = opendir(dirpath)) != NULL)
   {
     while((ent = readdir(dir)) != NULL)
@@ -406,7 +406,7 @@ int main(int argc, char **argv)
 {
   struct stat filestat;
   pid_t pid, pid1, pid2;
-
+  pid_t pid1_id, ppid1_id;
   for(int i = 1; i < argc; i++)
   {
     if(lstat(argv[i], &filestat) < 0)
@@ -414,7 +414,30 @@ int main(int argc, char **argv)
       printf("Error: Cannot lstat the file %s\n", argv[i]);
       continue;
     }
- 
+      if((pid1 = fork()) < 0)
+      {
+        printf("Failed to create 'pid1' child process!\n");
+        exit(1);
+      }   
+      if(pid1 == 0)
+      {
+        pid1_id = getpid();
+        ppid1_id = getppid();
+        printf("This is a child process: PPID: %d, PID: %d\n", ppid1_id, pid1_id);
+        char* arguments[] = {"bash", "compile_c.sh", argv[i], "f1.txt", NULL};   
+        printf("Executing script 'compile_c.sh'\n\n");
+        if(execv("/usr/bin/bash", arguments) == -1)
+        {
+          perror("execv");
+          exit(EXIT_FAILURE);
+        }
+        exit(0);
+      }
+      // else 
+      // {
+      //   wait(NULL);            
+      // }
+      //
     if((pid = fork()) < 0)
     {
       printf("Failed to create child process!\n");
@@ -435,34 +458,34 @@ int main(int argc, char **argv)
           filename = buff + 1;
         printf("%s - Regular file\n\n", filename);
         
-        if(filename[strlen(filename) - 2] == '.' && filename[strlen(filename) - 1] == 'c')
-        {
-          if((pid1 = fork()) < 0)
-          {
-            printf("Failed to create 'pid1' child process!\n");
-            exit(1);
-          }
-          
-          if(pid1 == 0)
-          {
-            char* arguments[] = {"bash", "compile_c.sh", argv[i], "f1.txt", NULL};
-          
-            printf("This is a .c file. Executing script 'compile_c.sh'\n\n");
-            if(execv("/usr/bin/bash", arguments) == -1)
-            {
-              perror("execv");
-              exit(EXIT_FAILURE);
-            }
-            exit(0);
-          }
-          else 
-          {
-            wait(NULL);            
-            printf("Done! Sending you to regular file menu!\n\n");
-          }
-        }
-
-        rf_menu(argv[i]); 
+        // if(filename[strlen(filename) - 2] == '.' && filename[strlen(filename) - 1] == 'c')
+        // {
+        //   if((pid1 = fork()) < 0)
+        //   {
+        //     printf("Failed to create 'pid1' child process!\n");
+        //     exit(1);
+        //   }
+        //   
+        //   if(pid1 == 0)
+        //   {
+        //     char* arguments[] = {"bash", "compile_c.sh", argv[i], "f1.txt", NULL};
+        //   
+        //     printf("This is a .c file. Executing script 'compile_c.sh'\n\n");
+        //     if(execv("/usr/bin/bash", arguments) == -1)
+        //     {
+        //       perror("execv");
+        //       exit(EXIT_FAILURE);
+        //     }
+        //     exit(0);
+        //   }
+        //   else 
+        //   {
+        //     wait(NULL);            
+        //     printf("Done! Sending you to regular file menu!\n\n");
+        //   }
+        // }
+        //
+        rf_menu(argv[i]);
       }
 
       if(S_ISLNK(filestat.st_mode))
@@ -493,7 +516,7 @@ int main(int argc, char **argv)
             
         while((buff = strchr(dirname, '/')) != NULL )
           dirname = buff + 1;
-        printf("%s - Directory\n\n", argv[i]);
+        printf("%s - Directory\n\n", dirname);
         
         if((pid2 = fork()) < 0)
         {
@@ -527,10 +550,9 @@ int main(int argc, char **argv)
       }
       exit(0);
     }
-    else 
-    {
+ wait(&pid1_id); 
+
       wait(NULL);    
-    }
-  }
+     }
   return 0;
 }
