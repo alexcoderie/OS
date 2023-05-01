@@ -22,8 +22,8 @@ count_errors=0
 count_warnings=0
 
 count_errors=$(grep -c error "$2")
-echo "$count_errors"
+echo "Errors: $count_errors"
 
 count_warnings=$(grep -c warning "$2")
-echo "$count_warnings"
+echo "Warnings: $count_warnings"
 echo
