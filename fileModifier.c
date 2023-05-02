@@ -377,10 +377,23 @@ void create_file_for_directory(char *directory) {
   free(dirname_file);
 }
 
+int compute_score(int errors, int warnings) {
+  int score;
+
+  if (errors == 0 && warnings == 0)       score = 10;
+  else if (errors >= 1)                   score = 1;
+  else if (errors == 0 && warnings > 10)  score = 2;
+  else if (errors == 0 && warnings <= 10) score = 2 + 8 * (10 - warnings) / 10;
+
+  return score;
+}
+
 int main(int argc, char **argv) {
   struct stat filestat;
   pid_t pid, pid1, pid2;
   pid_t pid1_id, ppid1_id;
+  int pfd[2];
+  char buff[4096];
 
   for (int i = 1; i < argc; i++) {
     
@@ -389,6 +402,43 @@ int main(int argc, char **argv) {
       continue;
     }
 
+    if (pipe(pfd) < 0) {
+      perror("Pipe creation error\n");
+      exit(1);
+    }
+
+    if (S_ISREG(filestat.st_mode)) {
+      if ((pid1 = fork()) < 0) {
+        printf("Failed to create 'pid1' process!\n");
+        exit(1);
+      }
+
+      if (pid1 == 0) {
+        pid1_id = getpid();
+        ppid1_id = getppid();
+        count_errors_and_warnings(argv[i]);
+        
+        close(pfd[0]);
+        write(pfd[1], buff, 4096); 
+        close(pfd[1]);
+        exit(0);
+      }
+    }
+    
+    close(pfd[1]);
+    read(pfd[0], buff, 4096);
+    close(pfd[0]);
+    if (S_ISDIR(filestat.st_mode)) {
+      if ((pid2 = fork()) < 0) {
+        printf("Failed to create 'pid2' child process\n");
+        exit(1);
+      }
+
+      if (pid2 == 0) {        
+        create_file_for_directory(argv[i]);
+        exit(0);
+      }
+    }
     if ((pid = fork()) < 0) {
       printf("Failed to create 'pid' process!\n");
       exit(1);
@@ -412,32 +462,7 @@ int main(int argc, char **argv) {
       exit(0);
     }
 
-    if (S_ISREG(filestat.st_mode)) {
-      if ((pid1 = fork()) < 0) {
-        printf("Failed to create 'pid1' process!\n");
-        exit(1);
-      }
-
-      if (pid1 == 0) {
-        pid1_id = getpid();
-        ppid1_id = getppid();
-        count_errors_and_warnings(argv[i]);
-
-        exit(0);
-      }
-    }
-
-    if (S_ISDIR(filestat.st_mode)) {
-      if ((pid2 = fork()) < 0) {
-        printf("Failed to create 'pid2' child process\n");
-        exit(1);
-      }
-
-      if (pid2 == 0) {        
-        create_file_for_directory(argv[i]);
-        exit(0);
-      }
-    }
+    
 
     waitpid(pid, NULL, 0);
     waitpid(pid1, NULL, 0);
