@@ -12,24 +12,24 @@
 #include <time.h>
 #include <unistd.h>
 
-char* get_name_from_path(char *path) {
+char *get_name_from_path(char *path) {
   char *buff;
   char *name = path;
 
   // if the path ends with a '/'.
   // only used for directories
-  if (name[strlen(name) - 1] == '/') 
+  if (name[strlen(name) - 1] == '/')
     name[strlen(name) - 1] = '\0';
 
   // if the given path is the root directory it
   // will start with a '/'
-  if (name[0] == '/')     
+  if (name[0] == '/')
     name++;
 
   while ((buff = strchr(name, '/')) != NULL)
     name = buff + 1;
 
-  return name; 
+  return name;
 }
 
 static char *read_stdin(void) {
@@ -69,7 +69,7 @@ void count_c_files(const char *dirpath, int *count) {
           return;
         else {
           if (strcmp(extension, ".c") == 0) {
-            //printf("%s\n", ent->d_name);
+            // printf("%s\n", ent->d_name);
             (*count)++;
           }
         }
@@ -99,7 +99,7 @@ void rf_menu(char *filepath) {
   printf("-a Acces rights\n");
   printf("-l Create a symbolic link\n");
   printf("-q Exit\n");
-  
+
   while (1) {
     printf("Chose an option:\n");
 
@@ -252,15 +252,18 @@ void sl_menu(char *linkpath) {
         printf("User\n");
         printf((linkstat.st_mode & S_IRUSR) ? "Read - yes\n" : "Read - no\n");
         printf((linkstat.st_mode & S_IWUSR) ? "Write - yes\n" : "Write - no\n");
-        printf((linkstat.st_mode & S_IXUSR) ? "Execute - yes\n" : "Execute - no\n");
+        printf((linkstat.st_mode & S_IXUSR) ? "Execute - yes\n"
+                                            : "Execute - no\n");
         printf("Group\n");
         printf((linkstat.st_mode & S_IRGRP) ? "Read - yes\n" : "Read - no\n");
         printf((linkstat.st_mode & S_IWGRP) ? "Write - yes\n" : "Write - no\n");
-        printf((linkstat.st_mode & S_IXGRP) ? "Execute - yes\n" : "Execute - no\n");
+        printf((linkstat.st_mode & S_IXGRP) ? "Execute - yes\n"
+                                            : "Execute - no\n");
         printf("Other\n");
         printf((linkstat.st_mode & S_IROTH) ? "Read - yes\n" : "Read - no\n");
         printf((linkstat.st_mode & S_IWOTH) ? "Write - yes\n" : "Write - no\n");
-        printf((linkstat.st_mode & S_IXOTH) ? "Execute - yes\n" : "Execute - no\n");
+        printf((linkstat.st_mode & S_IXOTH) ? "Execute - yes\n"
+                                            : "Execute - no\n");
 
         break;
       }
@@ -343,109 +346,113 @@ void dir_menu(char *dirpath) {
   }
 }
 
-void count_errors_and_warnings(char *file) {
-  char *name = get_name_from_path(file);
-  char *extension = strchr(name, '.');
-  if(strcmp(extension, ".c") != 0)
-    exit(0);
-  else {
-    char *arguments[] = {"bash", "compile_c.sh", file, "f1.txt", NULL};
+void count_errors_and_warnings(char *file, int pipe_fd) {
+  char *arguments[] = {"bash", "compile_c.sh", file, "f1.txt", NULL};
+  
+  dup2(pipe_fd, STDOUT_FILENO);
+  close(pipe_fd);
+  printf("Executing script 'compile_c.sh'\n\n");
+  fflush(stdout);
     
-    printf("Executing script 'compile_c.sh'\n\n");
-    if (execv("/usr/bin/bash", arguments) == -1) {
-      perror("execv");
-      exit(EXIT_FAILURE);
-    }
+  if (execv("/usr/bin/bash", arguments) == -1) {
+    perror("execv");
+    exit(EXIT_FAILURE);
   }
 }
 
-void create_file_for_directory(char *directory) {
+
+void create_file_for_directory(char *directory, int pipe_fd) {
   char *dirname = get_name_from_path(directory);
-  char *dirname_file =
-    (char *)malloc(sizeof(char) * (strlen(dirname) + 10));
+  char *dirname_file = (char *)malloc(sizeof(char) * (strlen(dirname) + 10));
 
   strcpy(dirname_file, dirname);
   strcat(dirname_file, "_file.txt");
   char *arguments[] = {"touch", dirname_file, NULL};
 
+  dup2(pipe_fd, STDOUT_FILENO);
+  close(pipe_fd);
   printf("Creating a text file with the name '%s_file.txt'\n", dirname);
+  fflush(stdout);
 
   if (execv("/usr/bin/touch", arguments) == -1) {
     perror("execv");
     exit(EXIT_FAILURE);
   }
-  free(dirname_file);
 }
 
 int compute_score(int errors, int warnings) {
   int score;
 
-  if (errors == 0 && warnings == 0)       score = 10;
-  else if (errors >= 1)                   score = 1;
-  else if (errors == 0 && warnings > 10)  score = 2;
-  else if (errors == 0 && warnings <= 10) score = 2 + 8 * (10 - warnings) / 10;
+  if (errors == 0 && warnings == 0)
+    score = 10;
+  else if (errors >= 1)
+    score = 1;
+  else if (errors == 0 && warnings > 10)
+    score = 2;
+  else if (errors == 0 && warnings <= 10)
+    score = 2 + 8 * (10 - warnings) / 10;
 
   return score;
 }
 
+void print_no_of_lines(char *file, int pipe_fd) {
+  char *arguments[] = {"grep", "-c", "^", file, NULL};
+  
+  dup2(pipe_fd, STDOUT_FILENO);
+  close(pipe_fd);
+  printf("Number of lines: ");
+  fflush(stdout);
+ 
+  if(execv("/usr/bin/grep", arguments) == -1) {
+    perror("execv");
+    exit(EXIT_FAILURE);
+  }
+}
+
+void change_permission(char *link, int pipe_fd) {
+  char *arguments[] = {"chmod", "-v", "760", link, NULL};
+  
+  dup2(pipe_fd, STDOUT_FILENO);
+  close(pipe_fd);
+  printf("Changing permissions to 'rwxrw----'\n");
+  fflush(stdout);
+
+  if(execv("/usr/bin/chmod", arguments) == -1) {
+    perror("execv");
+    exit(EXIT_FAILURE);
+  }
+}
+
 int main(int argc, char **argv) {
   struct stat filestat;
-  pid_t pid, pid1, pid2;
-  pid_t pid1_id, ppid1_id;
-  int pfd[2];
-  char buff[4096];
+  pid_t pid1, pid2;
+  int fd1[2], fd2[2], score_fd[2];
+  char buff1[4096], buff2[4096], score_buff[4096];
+  int status1, status2;
 
   for (int i = 1; i < argc; i++) {
-    
     if (lstat(argv[i], &filestat) < 0) {
       printf("Error: Cannot lstat the file %s\n", argv[i]);
       continue;
     }
-
-    if (pipe(pfd) < 0) {
-      perror("Pipe creation error\n");
-      exit(1);
-    }
-
-    if (S_ISREG(filestat.st_mode)) {
-      if ((pid1 = fork()) < 0) {
-        printf("Failed to create 'pid1' process!\n");
-        exit(1);
-      }
-
-      if (pid1 == 0) {
-        pid1_id = getpid();
-        ppid1_id = getppid();
-        count_errors_and_warnings(argv[i]);
-        
-        close(pfd[0]);
-        write(pfd[1], buff, 4096); 
-        close(pfd[1]);
-        exit(0);
-      }
+    
+    if (pipe(fd1) == -1) {
+      perror("pipe");
+      exit(EXIT_FAILURE);
     }
     
-    close(pfd[1]);
-    read(pfd[0], buff, 4096);
-    close(pfd[0]);
-    if (S_ISDIR(filestat.st_mode)) {
-      if ((pid2 = fork()) < 0) {
-        printf("Failed to create 'pid2' child process\n");
-        exit(1);
-      }
-
-      if (pid2 == 0) {        
-        create_file_for_directory(argv[i]);
-        exit(0);
-      }
+    if(pipe(fd2) == -1) {
+      perror("pipe");
+      exit(EXIT_FAILURE);
     }
-    if ((pid = fork()) < 0) {
-      printf("Failed to create 'pid' process!\n");
+    
+    if ((pid1 = fork()) < 0) {
+      printf("Failed to create the first child process!\n");
       exit(1);
     }
 
-    if (pid == 0) {
-      if (S_ISREG(filestat.st_mode)) {
+    if (pid1 == 0) {
+        if (S_ISREG(filestat.st_mode)) {
         printf("%s - Regular file\n\n", get_name_from_path(argv[i]));
         rf_menu(argv[i]);
       }
@@ -460,13 +467,76 @@ int main(int argc, char **argv) {
         dir_menu(argv[i]);
       }
       exit(0);
+    } 
+    else if (pid1 > 0) {
+      if ((pid2 = fork()) < 0) {
+        printf("Failed to create the second child process!\n");
+        exit(1);
+      }
+      
+      if(pid2 == 0) {
+        if(S_ISREG(filestat.st_mode)) {
+          char *name = get_name_from_path(argv[i]);
+          char *extension = strchr(name, '.');
+ 
+          if (strcmp(extension, ".c") == 0) {
+            close(fd1[0]); // close the read end of the pipe of child process
+            count_errors_and_warnings(argv[i], fd1[1]);
+          }
+          else {
+            close(fd2[0]);
+            print_no_of_lines(argv[i], fd2[1]);
+          }
+        }
+
+        if(S_ISDIR(filestat.st_mode)) {
+          close(fd2[0]);
+          create_file_for_directory(argv[i], fd2[1]);
+        }
+
+        if(S_ISLNK(filestat.st_mode)) {
+          close(fd2[0]);
+          change_permission(argv[i], fd2[1]); 
+        }
+        exit(0);
+      }
+      else if(pid2 > 0) {
+        waitpid(pid1, &status1, 0);
+        waitpid(pid2, &status2, 0);
+
+        close(fd1[1]);
+        close(fd2[1]);
+       
+        int n1, n2;
+        n1 = read(fd1[0], buff1, sizeof(score_buff));
+        buff1[n1] = '\0';
+        n2 = read(fd2[0], buff2, sizeof(buff2));
+        buff2[n2] = '\0';
+
+        if(S_ISREG(filestat.st_mode)) {
+          char *name = get_name_from_path(argv[i]);
+          char *extension = strchr(name, '.');
+          FILE *file = fopen("grades.txt", "a+");
+
+          if (strcmp(extension, ".c") == 0) {
+            write(STDOUT_FILENO, buff1, n1);
+            int errors, warnings;
+            sscanf(buff1, "Executing script 'compile_c.sh'\n\nErrors: %d Warnings: %d", &errors, &warnings);
+            int score = compute_score(errors, warnings);  
+            
+            fprintf(file, "%s:%d\n", name, score);
+            printf("The score was printed in the file 'grades.txt'\n");
+            
+            fclose(file);
+          }
+        }
+
+        write(STDOUT_FILENO, buff2, n2);
+                       
+        printf("The process with PID %d has ended with the exit code %d\n", pid1, status1);
+        printf("The process with PID %d has ended with the exit code %d\n", pid2, status2);
+      }
     }
-
-    
-
-    waitpid(pid, NULL, 0);
-    waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
   }
   return 0;
 }

@@ -16,14 +16,11 @@ then
 	exit 3
 fi
 
-gcc -Wall "$1" 2> "$2"
+gcc -Wall -o prog "$1" 2> "$2"
 
 count_errors=0
 count_warnings=0
 
 count_errors=$(grep -c error "$2")
-echo "Errors: $count_errors"
-
 count_warnings=$(grep -c warning "$2")
-echo "Warnings: $count_warnings"
-echo
+echo "Errors: $count_errors Warnings: $count_warnings"
