@@ -488,12 +488,13 @@ int main(int argc, char **argv) {
       continue;
     }
     
-    // I used two pipes. One for handling the score stuff for the C files and the other for printing the outputs
-    // of the child processes in order because I didn't like them interleaving due to the parallelism.
-    // The first child process doesn't use a pipe because it will output things continuously as long as I provide
-    // input and it will stop only after I provide the input for stopping, thus printing the output only after I'm done 
-    // with the operations. Because of that, while the first child process does its thing, the second one will pass its output
-    // to the pipes. After the first child process is done, I print the content of the pipes. 
+    /** I used two pipes. One for handling the score stuff for the C files and the other for printing the outputs
+      of the child processes in order because I didn't like them interleaving due to the parallelism.
+      The first child process doesn't use a pipe because it will output things continuously as long as I provide
+      input and it will stop only after I provide the input for stopping, thus printing the output only after I'm done 
+      with the operations. Because of that, while the first child process does its thing, 
+      the second one does its operations as well and will pass its output
+      to the pipes. After the first child process is done, I print the content of the pipes. **/
 
     if (pipe(fd1) == -1) {
       perror("pipe");
